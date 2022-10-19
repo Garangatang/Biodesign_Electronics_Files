@@ -8,9 +8,9 @@ import adafruit_displayio_ssd1306
 from adafruit_display_text import label
 import pwmio
 import time
-import gc
+from cedargrove_nau7802 import NAU7802
 
-gc.enable()
+
 
 # Counter for input weight to alarm at
 counter = 0;
@@ -47,9 +47,55 @@ display_bus = displayio.I2CDisplay (i2c, device_address = 0x3C) # The address of
 oled = adafruit_displayio_ssd1306.SSD1306(display_bus, width=128, height=64)
 #Draw a smaller inner rectangle
 
+# Setting up i2c lines for load cell amplifier
+nau7802 = NAU7802(i2c, address=0x2A, active_channels=2)
+
 current_counter = 0
 
 font = terminalio.FONT
+
+def zero_channel():
+    """Initiate internal calibration for current channel; return raw zero
+    offset value. Use when scale is started, a new channel is selected, or to
+    adjust for measurement drift. Remove weight and tare from load cell before
+    executing."""
+    print(
+        "channel %1d calibrate.INTERNAL: %5s"
+        % (nau7802.channel, nau7802.calibrate("INTERNAL"))
+    )
+    print(
+        "channel %1d calibrate.OFFSET:   %5s"
+        % (nau7802.channel, nau7802.calibrate("OFFSET"))
+    )
+    zero_offset = read_raw_value(100)  # Read 100 samples to establish zero offset
+    print("...channel %1d zeroed" % nau7802.channel)
+    return zero_offset
+
+def read_raw_value(samples=100):
+    """Read and average consecutive raw sample values. Return average raw value."""
+    sample_sum = 0
+    sample_count = samples
+    while sample_count > 0:
+        if nau7802.available:
+            sample_sum = sample_sum + nau7802.read()
+            sample_count -= 1
+    return int(sample_sum / samples)
+
+# Instantiate and calibrate load cell inputs
+print("*** Instantiate and calibrate load cells")
+# Enable NAU7802 digital and analog power
+enabled = nau7802.enable(True)
+print("Digital and analog power enabled:", enabled)
+
+print("REMOVE WEIGHTS FROM LOAD CELLS")
+time.sleep(3)
+
+nau7802.channel = 1
+zero_channel()  # Calibrate and zero channel
+nau7802.channel = 2
+zero_channel()  # Calibrate and zero channel
+
+print("READY")
 
 while True:
     #if (counter != current_counter):
@@ -112,11 +158,15 @@ while True:
     
     text_display1 = "Current Weight\n"
     text_display2 = str(counter)
+    nau7802.channel = 1
+    value = read_raw_value()
+    text_display3 = "raw value: %7.0f" % (value)
 
     #clock = label.Label(font, text=time_display)
     #date = label.Label(font, text=date_display)
     text1 = label.Label(font, text=text_display1)
     text2 = label.Label(font, text = text_display2)
+    text3 = label.Label(font, text = text_display3)
 
     (_, _, width, _) = text1.bounding_box
     text1.x = oled.width // 2 - width // 2
@@ -125,16 +175,26 @@ while True:
     (_, _, width, _) = text2.bounding_box
     text2.x = oled.width // 2 - width // 2
     text2.y = 35
+    
+    (_, _, width, _) = text3.bounding_box
+    text3.x = oled.width // 2 - width // 2
+    text3.y = 45
 
     watch_group = displayio.Group()
     #watch_group.append(clock)
     #watch_group.append(date)
     watch_group.append(text1)
     watch_group.append(text2)
+    watch_group.append(text3)
 
     oled.show(watch_group)
   
-    
+    #print("=====")
+    #for i in range(1, 3):
+    #    nau7802.channel = i
+    #    value = read_raw_value()
+    #   print("channel %1.0f raw value: %7.0f" % (nau7802.channel, value))
+
     #time.sleep(0.5)
     #gc.collect()
         
