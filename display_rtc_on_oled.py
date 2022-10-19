@@ -13,7 +13,8 @@ displayio.release_displays()
 
 i2c = busio.I2C(scl=board.SCL, sda=board.SDA)
 
-nau7802 = NAU7802(i2c, address=0x2A, active_channels=2)
+#nau7802 = NAU7802(i2c, address=0x2A, active_channels=2)
+pcf8563 = adafruit_pcf8563.PCF8563(i2c)
 
 font = terminalio.FONT
 
@@ -23,7 +24,11 @@ rtc = adafruit_pcf8563.PCF8563(i2c)
 oled = adafruit_displayio_ssd1306.SSD1306(display_bus, width=128, height=64)
 
 while True:
-    current = rtc.datetime
+    current = pcf8563.datetime
+            
+    # Formatting current time according to ISO 8601 
+    #current_time = datetime(*current[:6]).isoformat()
+    #current = rtc.datetime
 
     hour = current.tm_hour % 12
     if hour == 0:
@@ -59,7 +64,4 @@ while True:
     watch_group.append(text)
 
     oled.show(watch_group)
-
-
-
 
