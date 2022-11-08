@@ -10,7 +10,8 @@ import pwmio
 import time
 from cedargrove_nau7802 import NAU7802
 
-
+# String for setting screen mode
+screenMode = "raw"
 
 # Counter for input weight to alarm at
 counter = 0;
@@ -29,10 +30,15 @@ button_input3.switch_to_input(pull = digitalio.Pull.UP)
 button_input4.switch_to_input(pull = digitalio.Pull.UP)
 button_input5.switch_to_input(pull = digitalio.Pull.UP)
 
+# Button 1 is for increasing weight to alarm at
 button1 = Debouncer(button_input1)
+# Button 2 is for decreasing weight to alarm at
 button2 = Debouncer(button_input2)
+# Button 3 is for saving values to alarm at
 button3 = Debouncer(button_input3)
+# Button 4 is for switching screen modes
 button4 = Debouncer(button_input4)
+# Button 5 is for
 button5 = Debouncer(button_input5)
 
 # Setting up pulse waves for buzzer
@@ -81,13 +87,82 @@ def read_raw_value(samples=100):
             sample_count -= 1
     return int(sample_sum / samples)
 
+#  function for finding the average of an array
+def find_average(num):
+    count = 0
+    for n in num:
+        count = count + n
+    average = count / len(num)
+    return average
+#  calibration function
+
+def calculateCalibration(array):
+    for _ in range(10):
+        blue.value = True
+        green.value = False
+        nau7802.channel = 1
+        #value = read_raw_value()
+        print("channel %1.0f raw value: %7.0f" % (nau7802.channel, abs(read_raw_value())))
+        array.append(abs(read_raw_value()))
+        blue.value = False
+        green.value = True
+        time.sleep(1)
+    green.value = False
+    avg = find_average(array)
+    return avg
+
+#print("*** Instantiate and calibrate load cells")
+text_display1 = "*** Instantiate and \ncalibrate load cells"
+
+text1 = label.Label(font, text = text_display1)
+
+(_, _, width, _) = text1.bounding_box
+text1.x = oled.width // 2 - width // 2
+text1.y = 25
+
+watch_group = displayio.Group()
+
+watch_group.append(text1)
+
+oled.show(watch_group)
+
+
 # Instantiate and calibrate load cell inputs
-print("*** Instantiate and calibrate load cells")
+
 # Enable NAU7802 digital and analog power
 enabled = nau7802.enable(True)
 print("Digital and analog power enabled:", enabled)
+text_display1 = "Digital and analog\n power enabled:"
+
+text1 = label.Label(font, text = text_display1)
+
+(_, _, width, _) = text1.bounding_box
+text1.x = oled.width // 2 - width // 2
+text1.y = 25
+
+watch_group = displayio.Group()
+
+watch_group.append(text1)
+
+
+oled.show(watch_group)
+
 
 print("REMOVE WEIGHTS FROM LOAD CELLS")
+text_display1 = "REMOVE WEIGHTS\n FROM LOAD CELL"
+
+text1 = label.Label(font, text = text_display1)
+
+(_, _, width, _) = text1.bounding_box
+text1.x = oled.width // 2 - width // 2
+text1.y = 25
+
+watch_group = displayio.Group()
+
+watch_group.append(text1)
+
+oled.show(watch_group)
+
 time.sleep(3)
 
 nau7802.channel = 1
@@ -96,6 +171,20 @@ nau7802.channel = 2
 zero_channel()  # Calibrate and zero channel
 
 print("READY")
+text_display1 = "Place IV\nBag On Hook"
+
+text1 = label.Label(font, text = text_display1)
+
+(_, _, width, _) = text1.bounding_box
+text1.x = oled.width // 2 - width // 2
+text1.y = 25
+
+watch_group = displayio.Group()
+
+watch_group.append(text1)
+
+oled.show(watch_group)
+time.sleep(5)
 
 while True:
     #if (counter != current_counter):
@@ -111,8 +200,7 @@ while True:
         
     if button1.fell:
         print("Button1 pressed")
-        if (counter < 50):
-            counter += 1
+        counter += 1
 
     if button1.rose:
         print("Button1 released")
@@ -129,12 +217,14 @@ while True:
         print(counter)
         
     if button3.fell:
+        screenMode = "raw"
         print("Button3 pressed")
 
     if button3.rose:
         print("Button3 released")
     
     if button4.fell:
+        screenMode = "setWeight"
         print("Button4 pressed")
 
     if button4.rose:
@@ -146,9 +236,9 @@ while True:
     if button5.rose:
         print("Button5 released")
    
-        
-    if (counter == 10):
-        for f in (4500, 2700, 4500):
+    # Setting off the buzzer if counter hits a set value    
+    if (counter == 50):
+        for f in (3600, 2700, 3600):
             piezo.frequency = f
             piezo.duty_cycle = 65535 // 2  # On 50%
             time.sleep(0.25)  # On for 1/4 second
@@ -156,47 +246,72 @@ while True:
             time.sleep(0.05)  # Pause between notes
         counter -= 1
     
-    text_display1 = "Current Weight\n"
-    text_display2 = str(counter)
-    nau7802.channel = 1
-    value = read_raw_value()
-    text_display3 = "raw value: %7.0f" % (value)
+    if (screenMode == "raw"):
+        text_display1 = "Current Weight\n"
+        text_display2 = str(counter)
+        nau7802.channel = 1
+        value = read_raw_value()
+        text_display3 = "raw value: %7.0f" % (value)
 
-    #clock = label.Label(font, text=time_display)
-    #date = label.Label(font, text=date_display)
-    text1 = label.Label(font, text=text_display1)
-    text2 = label.Label(font, text = text_display2)
-    text3 = label.Label(font, text = text_display3)
+        #clock = label.Label(font, text=time_display)
+        #date = label.Label(font, text=date_display)
+        text1 = label.Label(font, text = text_display1)
+        text2 = label.Label(font, text = text_display2)
+        text3 = label.Label(font, text = text_display3)
 
-    (_, _, width, _) = text1.bounding_box
-    text1.x = oled.width // 2 - width // 2
-    text1.y = 25
-    
-    (_, _, width, _) = text2.bounding_box
-    text2.x = oled.width // 2 - width // 2
-    text2.y = 35
-    
-    (_, _, width, _) = text3.bounding_box
-    text3.x = oled.width // 2 - width // 2
-    text3.y = 45
-
-    watch_group = displayio.Group()
-    #watch_group.append(clock)
-    #watch_group.append(date)
-    watch_group.append(text1)
-    watch_group.append(text2)
-    watch_group.append(text3)
-
-    oled.show(watch_group)
-  
-    #print("=====")
-    #for i in range(1, 3):
-    #    nau7802.channel = i
-    #    value = read_raw_value()
-    #   print("channel %1.0f raw value: %7.0f" % (nau7802.channel, value))
-
-    #time.sleep(0.5)
-    #gc.collect()
+        (_, _, width, _) = text1.bounding_box
+        text1.x = oled.width // 2 - width // 2
+        text1.y = 25
         
+        (_, _, width, _) = text2.bounding_box
+        text2.x = oled.width // 2 - width // 2
+        text2.y = 35
+        
+        (_, _, width, _) = text3.bounding_box
+        text3.x = oled.width // 2 - width // 2
+        text3.y = 45
+
+        watch_group = displayio.Group()
+        #watch_group.append(clock)
+        #watch_group.append(date)
+        watch_group.append(text1)
+        watch_group.append(text2)
+        watch_group.append(text3)
+
+        oled.show(watch_group)
+        
+    if (screenMode == "setWeight"):
+        text_display1 = "Weight to Alarm At"
+        text_display2 = "Set Weight: %4.0f" % (counter * 5)
+        #nau7802.channel = 1
+        #value = read_raw_value()
+        #text_display3 = "raw value: %4.0f" % (value)
+
+        #clock = label.Label(font, text=time_display)
+        #date = label.Label(font, text=date_display)
+        text1 = label.Label(font, text = text_display1)
+        text2 = label.Label(font, text = text_display2)
+        #text3 = label.Label(font, text = text_display3)
+
+        (_, _, width, _) = text1.bounding_box
+        text1.x = oled.width // 2 - width // 2
+        text1.y = 25
+        
+        (_, _, width, _) = text2.bounding_box
+        text2.x = oled.width // 2 - width // 2
+        text2.y = 35
+        
+        #(_, _, width, _) = text3.bounding_box
+        #text3.x = oled.width // 2 - width // 2
+        #text3.y = 45
+
+        watch_group = displayio.Group()
+        #watch_group.append(clock)
+        #watch_group.append(date)
+        watch_group.append(text1)
+        watch_group.append(text2)
+        #watch_group.append(text3)
+
+        oled.show(watch_group)
 
 
