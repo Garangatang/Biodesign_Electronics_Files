@@ -9,6 +9,7 @@ from adafruit_display_text import label
 import pwmio
 import time
 from cedargrove_nau7802 import NAU7802
+from calibration import calibration
 
 # String for setting screen mode
 screenMode = "raw"
@@ -98,16 +99,11 @@ def find_average(num):
 
 def calculateCalibration(array):
     for _ in range(10):
-        blue.value = True
-        green.value = False
         nau7802.channel = 1
         #value = read_raw_value()
         print("channel %1.0f raw value: %7.0f" % (nau7802.channel, abs(read_raw_value())))
         array.append(abs(read_raw_value()))
-        blue.value = False
-        green.value = True
         time.sleep(1)
-    green.value = False
     avg = find_average(array)
     return avg
 
@@ -184,13 +180,40 @@ watch_group = displayio.Group()
 watch_group.append(text1)
 
 oled.show(watch_group)
-time.sleep(5)
+time.sleep(2)
+
+# Initializing calibration values for the load cell
+stage = 0
+zero_stage = 0
+weight_avg = 0
+zero_avg = 0
+show_oz = True
+show_grams = False
+zero_out = False
+calibrate_mode = False
+blue_btn_pressed = False
+green_btn_pressed = False
+run_mode = True
+avg_read = []
+values = []
+val_offset = 0
+avg_values = []
+
+for w in range(5):
+    nau7802.channel = 1
+    value = read_raw_value()
+    #  takes value reading and divides with by the offset value
+    #  to get the weight in grams
+    grams = value / calibration['offset_val']
+    avg_read.append(grams)
+    if len(avg_read) > 4:
+        the_avg = find_average(avg_read)
+        oz = the_avg / 28.35
+        #display.print("   %0.1f oz" % oz)
+        avg_read.clear()
+    time.sleep(1)
 
 while True:
-    #if (counter != current_counter):
-    #    text = "Current Weight"
-    #    text_area = label.Label(terminalio.FONT, text=text, color=0xFFFF00, x=28, y=15)
-    #   splash.append(text_area)
     
     button1.update()
     button2.update()
@@ -200,7 +223,8 @@ while True:
         
     if button1.fell:
         print("Button1 pressed")
-        counter += 1
+        if (screenMode == "setWeight"):
+            counter += 1
 
     if button1.rose:
         print("Button1 released")
@@ -209,7 +233,7 @@ while True:
     
     if button2.fell:
         print("Button2 pressed")
-        if (counter > 0):
+        if (counter > 0 and screenMode == "setWeight"):
             counter -= 1
 
     if button2.rose:
@@ -247,20 +271,39 @@ while True:
         counter -= 1
     
     if (screenMode == "raw"):
-        text_display1 = "Current Weight\n"
-        text_display2 = str(counter)
+
         nau7802.channel = 1
         value = read_raw_value()
-        text_display3 = "raw value: %7.0f" % (value)
+        print(value)
+        value = abs(value) - val_offset
+        print(value)
+        #value = abs(value)
+        values.append(value)
+        #  takes value reading and divides with by the offset value
+        #  to get the weight in grams
+        grams = value / calibration['offset_val']
+        #oz = grams / 28.35
+        
+        avg_read.append(grams)
+        #label1 = "g"
+        print(avg_read)
+        if (len(avg_read) > 10):
+            the_avg = find_average(avg_read)
+            #display.print("   %0.1f %s" % (the_avg, label))
+            avg_read.clear()
+        
+        text_display5 = "Current Weight\n"
+        text_display2 = str(counter)
+        #nau7802.channel = 1
+        #value = read_raw_value()
+        text_display3 = "raw value in g: %5.1f" % (the_avg)
 
-        #clock = label.Label(font, text=time_display)
-        #date = label.Label(font, text=date_display)
-        text1 = label.Label(font, text = text_display1)
+        text5 = label.Label(font, text = text_display5)
         text2 = label.Label(font, text = text_display2)
         text3 = label.Label(font, text = text_display3)
 
         (_, _, width, _) = text1.bounding_box
-        text1.x = oled.width // 2 - width // 2
+        text5.x = oled.width // 2 - width // 2
         text1.y = 25
         
         (_, _, width, _) = text2.bounding_box
@@ -272,9 +315,8 @@ while True:
         text3.y = 45
 
         watch_group = displayio.Group()
-        #watch_group.append(clock)
-        #watch_group.append(date)
-        watch_group.append(text1)
+
+        watch_group.append(text5)
         watch_group.append(text2)
         watch_group.append(text3)
 
@@ -283,15 +325,9 @@ while True:
     if (screenMode == "setWeight"):
         text_display1 = "Weight to Alarm At"
         text_display2 = "Set Weight: %4.0f" % (counter * 5)
-        #nau7802.channel = 1
-        #value = read_raw_value()
-        #text_display3 = "raw value: %4.0f" % (value)
 
-        #clock = label.Label(font, text=time_display)
-        #date = label.Label(font, text=date_display)
         text1 = label.Label(font, text = text_display1)
         text2 = label.Label(font, text = text_display2)
-        #text3 = label.Label(font, text = text_display3)
 
         (_, _, width, _) = text1.bounding_box
         text1.x = oled.width // 2 - width // 2
@@ -300,17 +336,11 @@ while True:
         (_, _, width, _) = text2.bounding_box
         text2.x = oled.width // 2 - width // 2
         text2.y = 35
-        
-        #(_, _, width, _) = text3.bounding_box
-        #text3.x = oled.width // 2 - width // 2
-        #text3.y = 45
 
         watch_group = displayio.Group()
-        #watch_group.append(clock)
-        #watch_group.append(date)
+
         watch_group.append(text1)
         watch_group.append(text2)
-        #watch_group.append(text3)
 
         oled.show(watch_group)
 
