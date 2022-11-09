@@ -60,6 +60,7 @@ nau7802.gain = 128
 enabled = nau7802.enable(True)
 
 current_counter = 0
+current_weight = 0;
 
 font = terminalio.FONT
 
@@ -275,7 +276,7 @@ while True:
         print("Button5 released")
    
     # Setting off the buzzer if counter hits a set value    
-    elif (counter == 50):
+    if (current_weight <= 50):
         for f in (3600, 2700, 3600):
             piezo.frequency = f
             piezo.duty_cycle = 65535 // 2  # On 50%
@@ -284,7 +285,7 @@ while True:
             time.sleep(0.05)  # Pause between notes
         counter -= 1
     
-    elif (screenMode == "raw"):
+    if (screenMode == "raw"):
 
         nau7802.channel = 1
         value = read_raw_value()
@@ -296,11 +297,11 @@ while True:
         #  takes value reading and divides with by the offset value
         #  to get the weight in grams
         grams = value / calibration['offset_val']
-        grams *= -21.0
+        current_weight = grams* -21.0
         
         #oz = grams / 28.35
         
-        avg_read.append(grams)
+        avg_read.append(current_weight)
         #label1 = "g"
         print(avg_read)
         if (len(avg_read) > 10):
@@ -338,7 +339,7 @@ while True:
 
         oled.show(watch_group)
         
-    elif (screenMode == "setWeight"):
+    if (screenMode == "setWeight"):
         text_display1 = "Weight to Alarm At"
         text_display2 = "Set Weight: %4.0f" % (counter * 5)
 
