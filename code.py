@@ -12,7 +12,7 @@ from cedargrove_nau7802 import NAU7802
 from calibration import calibration
 
 # String for setting screen mode
-screenMode = "raw"
+
 
 # Counter for input weight to alarm at
 counter = 0;
@@ -56,6 +56,8 @@ oled = adafruit_displayio_ssd1306.SSD1306(display_bus, width=128, height=64)
 
 # Setting up i2c lines for load cell amplifier
 nau7802 = NAU7802(i2c, address=0x2A, active_channels=2)
+nau7802.gain = 128
+enabled = nau7802.enable(True)
 
 current_counter = 0
 
@@ -103,7 +105,7 @@ def calculateCalibration(array):
         #value = read_raw_value()
         print("channel %1.0f raw value: %7.0f" % (nau7802.channel, abs(read_raw_value())))
         array.append(abs(read_raw_value()))
-        time.sleep(1)
+        time.sleep(0.1)
     avg = find_average(array)
     return avg
 
@@ -159,12 +161,23 @@ watch_group.append(text1)
 
 oled.show(watch_group)
 
-time.sleep(3)
+time.sleep(2)
 
+# Zero out the channels
+#  runs the calculateCallibration function
+#  takes 10 raw readings, stores them into an array and gets an average
+zero_readings = []
+zero_avg = calculateCalibration(zero_readings)
+# Calibrating the channels
 nau7802.channel = 1
 zero_channel()  # Calibrate and zero channel
 nau7802.channel = 2
 zero_channel()  # Calibrate and zero channel
+weight_readings = []
+#  weighs the item 10 times, stores the readings in an array & averages them
+weight_avg = calculateCalibration(weight_readings)
+#  calculates the new offset value
+calibration['offset_val'] = (weight_avg-zero_avg) / calibration['weight']
 
 print("READY")
 text_display1 = "Place IV\nBag On Hook"
@@ -180,7 +193,7 @@ watch_group = displayio.Group()
 watch_group.append(text1)
 
 oled.show(watch_group)
-time.sleep(2)
+time.sleep(1)
 
 # Initializing calibration values for the load cell
 stage = 0
@@ -198,6 +211,7 @@ avg_read = []
 values = []
 val_offset = 0
 avg_values = []
+screenMode = "raw"
 
 for w in range(5):
     nau7802.channel = 1
@@ -211,7 +225,7 @@ for w in range(5):
         oz = the_avg / 28.35
         #display.print("   %0.1f oz" % oz)
         avg_read.clear()
-    time.sleep(1)
+    time.sleep(0.5)
 
 while True:
     
@@ -261,7 +275,7 @@ while True:
         print("Button5 released")
    
     # Setting off the buzzer if counter hits a set value    
-    if (counter == 50):
+    elif (counter == 50):
         for f in (3600, 2700, 3600):
             piezo.frequency = f
             piezo.duty_cycle = 65535 // 2  # On 50%
@@ -270,18 +284,20 @@ while True:
             time.sleep(0.05)  # Pause between notes
         counter -= 1
     
-    if (screenMode == "raw"):
+    elif (screenMode == "raw"):
 
         nau7802.channel = 1
         value = read_raw_value()
-        print(value)
+        #print(value)
         value = abs(value) - val_offset
-        print(value)
+        #print(value)
         #value = abs(value)
         values.append(value)
         #  takes value reading and divides with by the offset value
         #  to get the weight in grams
         grams = value / calibration['offset_val']
+        grams *= -21.0
+        
         #oz = grams / 28.35
         
         avg_read.append(grams)
@@ -292,19 +308,19 @@ while True:
             #display.print("   %0.1f %s" % (the_avg, label))
             avg_read.clear()
         
-        text_display5 = "Current Weight\n"
+        text_display4 = "Current Weight"
         text_display2 = str(counter)
         #nau7802.channel = 1
         #value = read_raw_value()
         text_display3 = "raw value in g: %5.1f" % (the_avg)
 
-        text5 = label.Label(font, text = text_display5)
+        text4 = label.Label(font, text = text_display4)
         text2 = label.Label(font, text = text_display2)
         text3 = label.Label(font, text = text_display3)
 
-        (_, _, width, _) = text1.bounding_box
-        text5.x = oled.width // 2 - width // 2
-        text1.y = 25
+        (_, _, width, _) = text4.bounding_box
+        text4.x = oled.width // 2 - width // 2
+        text4.y = 25
         
         (_, _, width, _) = text2.bounding_box
         text2.x = oled.width // 2 - width // 2
@@ -316,13 +332,13 @@ while True:
 
         watch_group = displayio.Group()
 
-        watch_group.append(text5)
+        watch_group.append(text4)
         watch_group.append(text2)
         watch_group.append(text3)
 
         oled.show(watch_group)
         
-    if (screenMode == "setWeight"):
+    elif (screenMode == "setWeight"):
         text_display1 = "Weight to Alarm At"
         text_display2 = "Set Weight: %4.0f" % (counter * 5)
 
@@ -343,5 +359,5 @@ while True:
         watch_group.append(text2)
 
         oled.show(watch_group)
-
+    #print(screenMode)
 
