@@ -16,6 +16,8 @@ from calibration import calibration
 
 # Counter for input weight to alarm at
 counter = 0;
+# Bool for sounding alarm or not
+soundAlarm = True
 
 # Initializing all buttons and their pull up resistors.
 button_input1 = digitalio.DigitalInOut(board.D10)
@@ -268,15 +270,18 @@ while True:
 
     if button4.rose:
         print("Button4 released")
-        
+    
+    # Alarm to turn alarm on and off
     if button5.fell:
+        soundAlarm = not soundAlarm
+        #pr
         print("Button5 pressed")
 
     if button5.rose:
         print("Button5 released")
    
     # Setting off the buzzer if counter hits a set value    
-    if (current_weight <= 50):
+    if (current_weight <= 50 and soundAlarm):
         for f in (3600, 2700, 3600):
             piezo.frequency = f
             piezo.duty_cycle = 65535 // 2  # On 50%
