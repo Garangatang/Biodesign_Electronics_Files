@@ -14,10 +14,10 @@ from calibration import calibration
 # String for setting screen mode
 
 
-# Counter for input weight to alarm at
-counter = 0;
+# set_weight for input weight to alarm at
+set_weight = 6;
 # Bool for sounding alarm or not
-soundAlarm = True
+sound_alarm = True
 
 # Initializing all buttons and their pull up resistors.
 button_input1 = digitalio.DigitalInOut(board.D10)
@@ -61,7 +61,7 @@ nau7802 = NAU7802(i2c, address=0x2A, active_channels=2)
 nau7802.gain = 128
 enabled = nau7802.enable(True)
 
-current_counter = 0
+current_set_weight = 0
 current_weight = 0;
 
 font = terminalio.FONT
@@ -121,11 +121,11 @@ text1 = label.Label(font, text = text_display1)
 text1.x = oled.width // 2 - width // 2
 text1.y = 25
 
-watch_group = displayio.Group()
+screen_group = displayio.Group()
 
-watch_group.append(text1)
+screen_group.append(text1)
 
-oled.show(watch_group)
+oled.show(screen_group)
 
 
 # Instantiate and calibrate load cell inputs
@@ -141,12 +141,12 @@ text1 = label.Label(font, text = text_display1)
 text1.x = oled.width // 2 - width // 2
 text1.y = 25
 
-watch_group = displayio.Group()
+screen_group = displayio.Group()
 
-watch_group.append(text1)
+screen_group.append(text1)
 
 
-oled.show(watch_group)
+oled.show(screen_group)
 
 
 print("REMOVE WEIGHTS FROM LOAD CELLS")
@@ -158,11 +158,11 @@ text1 = label.Label(font, text = text_display1)
 text1.x = oled.width // 2 - width // 2
 text1.y = 25
 
-watch_group = displayio.Group()
+screen_group = displayio.Group()
 
-watch_group.append(text1)
+screen_group.append(text1)
 
-oled.show(watch_group)
+oled.show(screen_group)
 
 time.sleep(2)
 
@@ -191,11 +191,11 @@ text1 = label.Label(font, text = text_display1)
 text1.x = oled.width // 2 - width // 2
 text1.y = 25
 
-watch_group = displayio.Group()
+screen_group = displayio.Group()
 
-watch_group.append(text1)
+screen_group.append(text1)
 
-oled.show(watch_group)
+oled.show(screen_group)
 time.sleep(1)
 
 # Initializing calibration values for the load cell
@@ -241,22 +241,23 @@ while True:
     if button1.fell:
         print("Button1 pressed")
         if (screenMode == "setWeight"):
-            counter += 1
+            set_weight += 1
 
     if button1.rose:
         print("Button1 released")
-        print(counter)
+        print(set_weight)
         
-    
+    # Decrease weight to alarm at
     if button2.fell:
         print("Button2 pressed")
-        if (counter > 0 and screenMode == "setWeight"):
-            counter -= 1
+        if (set_weight > 6 and screenMode == "setWeight"):
+            set_weight -= 1
 
     if button2.rose:
         print("Button2 released")
-        print(counter)
-        
+        print(set_weight)
+    
+    # Return to showing the raw loading values
     if button3.fell:
         screenMode = "raw"
         print("Button3 pressed")
@@ -264,6 +265,7 @@ while True:
     if button3.rose:
         print("Button3 released")
     
+    # Button to change the screen modes to set the weight to alarm at
     if button4.fell:
         screenMode = "setWeight"
         print("Button4 pressed")
@@ -271,24 +273,24 @@ while True:
     if button4.rose:
         print("Button4 released")
     
-    # Alarm to turn alarm on and off
+    # Set button to turn alarm on and off
     if button5.fell:
-        soundAlarm = not soundAlarm
+        sound_alarm = not sound_alarm
         #pr
         print("Button5 pressed")
 
     if button5.rose:
         print("Button5 released")
    
-    # Setting off the buzzer if counter hits a set value    
-    if (current_weight <= 50 and soundAlarm):
+    # Setting off the buzzer if set_weight hits a set value
+    if (current_weight <= set_weight*5 and sound_alarm):
         for f in (3600, 2700, 3600):
             piezo.frequency = f
             piezo.duty_cycle = 65535 // 2  # On 50%
             time.sleep(0.25)  # On for 1/4 second
             piezo.duty_cycle = 0  # Off
             time.sleep(0.05)  # Pause between notes
-        counter -= 1
+        #set_weight -= 1
     
     if (screenMode == "raw"):
 
@@ -302,23 +304,24 @@ while True:
         #  takes value reading and divides with by the offset value
         #  to get the weight in grams
         grams = value / calibration['offset_val']
-        current_weight = grams* -21.0
+        current_weight = grams* -11.0
         
         #oz = grams / 28.35
         
         avg_read.append(current_weight)
         #label1 = "g"
         print(avg_read)
+        # Averaging all the reads so a sudden spike doesn't skew the readings too much
         if (len(avg_read) > 10):
             the_avg = find_average(avg_read)
             #display.print("   %0.1f %s" % (the_avg, label))
             avg_read.clear()
         
         text_display4 = "Current Weight"
-        text_display2 = str(counter)
+        text_display2 = "Set Weight: " + str(set_weight*5)
         #nau7802.channel = 1
         #value = read_raw_value()
-        text_display3 = "raw value in g: %5.1f" % (the_avg)
+        text_display3 = "raw value in g: %3.1f" % (current_weight)
 
         text4 = label.Label(font, text = text_display4)
         text2 = label.Label(font, text = text_display2)
@@ -336,20 +339,28 @@ while True:
         text3.x = oled.width // 2 - width // 2
         text3.y = 45
 
-        watch_group = displayio.Group()
+        screen_group = displayio.Group()
 
-        watch_group.append(text4)
-        watch_group.append(text2)
-        watch_group.append(text3)
-
-        oled.show(watch_group)
+        screen_group.append(text4)
+        screen_group.append(text2)
+        screen_group.append(text3)
         
+        # Showing an updating screen group with the current weight and set weight
+        oled.show(screen_group)
+    
+    # Change the screen to allow users to change the weight
     if (screenMode == "setWeight"):
         text_display1 = "Weight to Alarm At"
-        text_display2 = "Set Weight: %4.0f" % (counter * 5)
+        text_display2 = "Set Weight: %4.0f" % (set_weight * 5)
+        alarm_status = "off"
+        if (sound_alarm):
+            alarm_status = "on"
+            
+        text_display3 = "Alarm status: " + alarm_status
 
         text1 = label.Label(font, text = text_display1)
         text2 = label.Label(font, text = text_display2)
+        text3 = label.Label(font, text = text_display3)
 
         (_, _, width, _) = text1.bounding_box
         text1.x = oled.width // 2 - width // 2
@@ -358,12 +369,19 @@ while True:
         (_, _, width, _) = text2.bounding_box
         text2.x = oled.width // 2 - width // 2
         text2.y = 35
+        
+        (_, _, width, _) = text3.bounding_box
+        text3.x = oled.width // 2 - width // 2
+        text3.y = 45
 
-        watch_group = displayio.Group()
+        screen_group = displayio.Group()
 
-        watch_group.append(text1)
-        watch_group.append(text2)
-
-        oled.show(watch_group)
+        screen_group.append(text1)
+        screen_group.append(text2)
+        screen_group.append(text3)
+        
+        oled.show(screen_group)
+        #sound_alarm = True
     #print(screenMode)
+
 
