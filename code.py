@@ -86,7 +86,8 @@ def zero_channel():
 
 # Function for reading the raw weight values from the load cell
 def read_raw_value(samples=100):
-    """Read and average consecutive raw sample values. Return average raw value."""
+    """Read and average consecutive raw sample values.
+        Return average raw value."""
     sample_sum = 0
     sample_count = samples
     while sample_count > 0:
@@ -105,7 +106,7 @@ def find_average(num):
 #  calibration function
 
 # Function for calibrating the load cell before it is used each time.
-def calculateCalibration(array):
+def calculate_calibration(array):
     for _ in range(10):
         nau7802.channel = 1
         #value = read_raw_value()
@@ -168,11 +169,11 @@ oled.show(screen_group)
 time.sleep(2)
 
 # Zero out the channels
-#  runs the calculateCalibration function
+#  runs the calculate_calibration function
 #  takes 10 raw readings, stores them into an array and gets an average
 # The average is then used for the calibration
 zero_readings = []
-zero_avg = calculateCalibration(zero_readings)
+zero_avg = calculate_calibration(zero_readings)
 # Calibrating the channels
 nau7802.channel = 1
 zero_channel()  # Calibrate and zero channel
@@ -180,7 +181,7 @@ nau7802.channel = 2
 zero_channel()  # Calibrate and zero channel
 weight_readings = []
 #  weighs the item 10 times, stores the readings in an array & averages them
-weight_avg = calculateCalibration(weight_readings)
+weight_avg = calculate_calibration(weight_readings)
 #  calculates the new offset value
 calibration['offset_val'] = (weight_avg-zero_avg) / calibration['weight']
 
@@ -306,7 +307,7 @@ while True:
         #  Take the value reading and divide by the offset value
         #  to get the weight in grams
         grams = value / calibration['offset_val']
-        current_weight = grams* -11.0
+        current_weight = grams* calibration['calibration_weight_adjustment']
         
         #oz = grams / 28.35
         
