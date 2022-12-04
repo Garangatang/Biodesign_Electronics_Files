@@ -66,6 +66,7 @@ current_weight = 0;
 
 font = terminalio.FONT
 
+# Function Zeroing out all channels on the load cell before calibration
 def zero_channel():
     """Initiate internal calibration for current channel; return raw zero
     offset value. Use when scale is started, a new channel is selected, or to
@@ -83,6 +84,7 @@ def zero_channel():
     print("...channel %1d zeroed" % nau7802.channel)
     return zero_offset
 
+# Function for reading the raw weight values from the load cell
 def read_raw_value(samples=100):
     """Read and average consecutive raw sample values. Return average raw value."""
     sample_sum = 0
@@ -93,7 +95,7 @@ def read_raw_value(samples=100):
             sample_count -= 1
     return int(sample_sum / samples)
 
-#  function for finding the average of an array
+#  Function for finding the average of an array
 def find_average(num):
     count = 0
     for n in num:
@@ -102,6 +104,7 @@ def find_average(num):
     return average
 #  calibration function
 
+# Function for calibrating the load cell before it is used each time.
 def calculateCalibration(array):
     for _ in range(10):
         nau7802.channel = 1
@@ -112,7 +115,8 @@ def calculateCalibration(array):
     avg = find_average(array)
     return avg
 
-#print("*** Instantiate and calibrate load cells")
+
+# Beginning the connection to the load cells so they can be calibrated
 text_display1 = "*** Instantiate and \ncalibrate load cells"
 
 text1 = label.Label(font, text = text_display1)
@@ -126,9 +130,6 @@ screen_group = displayio.Group()
 screen_group.append(text1)
 
 oled.show(screen_group)
-
-
-# Instantiate and calibrate load cell inputs
 
 # Enable NAU7802 digital and analog power
 enabled = nau7802.enable(True)
@@ -148,7 +149,7 @@ screen_group.append(text1)
 
 oled.show(screen_group)
 
-
+# Beginning the zeroing of channels and calibration
 print("REMOVE WEIGHTS FROM LOAD CELLS")
 text_display1 = "REMOVE WEIGHTS\n FROM LOAD CELL"
 
@@ -167,8 +168,9 @@ oled.show(screen_group)
 time.sleep(2)
 
 # Zero out the channels
-#  runs the calculateCallibration function
+#  runs the calculateCalibration function
 #  takes 10 raw readings, stores them into an array and gets an average
+# The average is then used for the calibration
 zero_readings = []
 zero_avg = calculateCalibration(zero_readings)
 # Calibrating the channels
@@ -182,6 +184,7 @@ weight_avg = calculateCalibration(weight_readings)
 #  calculates the new offset value
 calibration['offset_val'] = (weight_avg-zero_avg) / calibration['weight']
 
+# Calibration has completed and weights can now be placed onto the load cell
 print("READY")
 text_display1 = "Place IV\nBag On Hook"
 
@@ -206,9 +209,6 @@ zero_avg = 0
 show_oz = True
 show_grams = False
 zero_out = False
-calibrate_mode = False
-blue_btn_pressed = False
-green_btn_pressed = False
 run_mode = True
 avg_read = []
 values = []
@@ -231,13 +231,14 @@ for w in range(5):
     time.sleep(0.5)
 
 while True:
-    
+    # Updating the buttons during each iteration
     button1.update()
     button2.update()
     button3.update()
     button4.update()
     button5.update()
-        
+    
+    # Increase weight to alarm at
     if button1.fell:
         print("Button1 pressed")
         if (screenMode == "setWeight"):
@@ -292,16 +293,17 @@ while True:
             time.sleep(0.05)  # Pause between notes
         #set_weight -= 1
     
+    # Raw screen mode shows the current weight registering from the load cell
+    # and the weight to alarm at
     if (screenMode == "raw"):
 
         nau7802.channel = 1
         value = read_raw_value()
-        #print(value)
+        
         value = abs(value) - val_offset
-        #print(value)
-        #value = abs(value)
+
         values.append(value)
-        #  takes value reading and divides with by the offset value
+        #  Take the value reading and divide by the offset value
         #  to get the weight in grams
         grams = value / calibration['offset_val']
         current_weight = grams* -11.0
@@ -309,18 +311,15 @@ while True:
         #oz = grams / 28.35
         
         avg_read.append(current_weight)
-        #label1 = "g"
         print(avg_read)
         # Averaging all the reads so a sudden spike doesn't skew the readings too much
         if (len(avg_read) > 10):
             the_avg = find_average(avg_read)
-            #display.print("   %0.1f %s" % (the_avg, label))
             avg_read.clear()
         
         text_display4 = "Current Weight"
         text_display2 = "Set Weight: " + str(set_weight*5)
-        #nau7802.channel = 1
-        #value = read_raw_value()
+
         text_display3 = "raw value in g: %3.1f" % (current_weight)
 
         text4 = label.Label(font, text = text_display4)
@@ -380,8 +379,6 @@ while True:
         screen_group.append(text2)
         screen_group.append(text3)
         
+        # Show the user a screen which shows the alarm status and shows an
+        # updating weight to alarm at based on the user input.
         oled.show(screen_group)
-        #sound_alarm = True
-    #print(screenMode)
-
-
